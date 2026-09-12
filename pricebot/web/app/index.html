@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Прайс</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Special+Elite&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./app.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <div class="sheet">
+      <header class="mast">
+        <div class="mast-mark" aria-hidden="true">№</div>
+        <div class="mast-copy">
+          <p class="eyebrow">складской лист</p>
+          <h1>Прайс</h1>
+        </div>
+        <button type="button" class="cart-pull" id="orders-toggle">Мои заказы</button>
+        <button type="button" class="cart-pull" id="cart-toggle" aria-expanded="false">
+          Корзина
+          <span class="cart-count" id="cart-count">0</span>
+        </button>
+      </header>
+
+      <section class="ledger" aria-label="Каталог">
+        <div class="cats" id="categories" role="tablist"></div>
+        <label class="seek">
+          <span>Поиск</span>
+          <input
+            id="search"
+            type="search"
+            name="q"
+            maxlength="200"
+            autocomplete="off"
+            placeholder="артикул, название, категория"
+          />
+        </label>
+        <p class="hint" id="hint">Введите запрос или выберите категорию</p>
+        <div class="cards" id="cards"></div>
+        <nav class="pager" id="pager" hidden>
+          <button type="button" id="prev-page">Назад</button>
+          <span id="page-label"></span>
+          <button type="button" id="next-page">Далее</button>
+        </nav>
+      </section>
+
+      <aside class="tray" id="cart-tray" hidden>
+        <div class="tray-head">
+          <h2>Корзина</h2>
+          <button type="button" class="tray-close" id="cart-close">Закрыть</button>
+        </div>
+        <ul class="bag" id="cart-items"></ul>
+        <p class="sum">
+          Итого
+          <strong id="cart-total">0 ₽</strong>
+        </p>
+        <label class="seek promo">
+          <span>Промокод</span>
+          <input id="promo-code" type="text" name="promo" maxlength="64" autocomplete="off" />
+        </label>
+        <button type="button" class="pay" id="checkout">Оформить</button>
+        <p class="hint" id="checkout-hint"></p>
+      </aside>
+
+      <section class="sheet-card" id="pay-sheet" hidden>
+        <div class="tray-head">
+          <h2>Заказ</h2>
+          <button type="button" class="tray-close" id="pay-close">Закрыть</button>
+        </div>
+        <p class="order-no" id="pay-number"></p>
+        <p class="sum">
+          Сумма
+          <strong id="pay-sum"></strong>
+        </p>
+        <img id="pay-qr" class="qr" alt="QR оплаты" />
+      </section>
+
+      <section class="sheet-card" id="orders-sheet" hidden>
+        <div class="tray-head">
+          <h2>Мои заказы</h2>
+          <button type="button" class="tray-close" id="orders-close">Закрыть</button>
+        </div>
+        <ul class="bag" id="orders-list"></ul>
+      </section>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>
