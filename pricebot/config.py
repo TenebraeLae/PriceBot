@@ -87,6 +87,8 @@ class Settings(BaseSettings):
             password=self.redis_password,
             port=self.redis_port,
         )
+        if self.domain.strip() and self.bot_mode == "polling":
+            self.bot_mode = "webhook"
         return self
 
 

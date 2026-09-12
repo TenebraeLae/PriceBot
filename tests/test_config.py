@@ -52,6 +52,7 @@ def test_platform_env_rewrites_loopback_urls() -> None:
     )
     assert settings.public_base_url == "https://shop.bothost.tech"
     assert settings.webapp_url == "https://shop.bothost.tech/app/"
+    assert settings.bot_mode == "webhook"
     assert settings.database_url == "postgresql+asyncpg://u:p@pg.internal:5432/db"
     assert settings.redis_url == "redis://redis.internal:6379/0"
 
@@ -98,3 +99,4 @@ def test_fastapi_slot_stub() -> None:
     assert payload["ready"] is True
     assert client.get("/api/slot").json() == payload
     assert client.get("/health").json() == {"ok": True}
+    assert client.get("/").json() == {"ok": True}

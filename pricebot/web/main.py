@@ -97,6 +97,7 @@ app.include_router(tickets_router)
 app.include_router(telegram_router)
 
 
+@app.get("/")
 @app.get("/health")
 async def health() -> dict[str, bool]:
     return {"ok": True}
