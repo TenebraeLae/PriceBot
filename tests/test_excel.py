@@ -129,3 +129,11 @@ def test_zero_or_empty_price_is_row_error(tmp_path: Path) -> None:
     empty = parse_excel(empty_path)
     assert empty.accepted is False
     assert empty.rows_ok == []
+
+
+def test_sample_catalog_1000_parses() -> None:
+    path = Path(__file__).resolve().parents[1] / "content" / "sample_catalog_1000.xlsx"
+    result = parse_excel(path)
+    assert result.import_status == "applied"
+    assert len(result.rows_ok) == 1000
+    assert result.rows_ok[0].sku == "PB-0001"

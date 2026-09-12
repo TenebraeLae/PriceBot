@@ -22,6 +22,7 @@ data/backups/*
 !data/backups/.gitkeep
 *.xlsx
 !tests/fixtures/**
+!content/sample_catalog_1000.xlsx
 .coverage
 htmlcov/
 data/_c_test.db
