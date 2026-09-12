@@ -99,24 +99,30 @@ async def search_products_db(
         Product.active.is_(True),
         Product.search_blob.like(pattern, escape=LIKE_ESCAPE),
     )
-
-    total = int(
-        await session.scalar(select(func.count()).select_from(Product).where(*filters)) or 0
-    )
     offset = (page - 1) * page_size
-    if offset >= total:
-        return SearchPage(items=[], page=page, page_size=page_size, total=total, reason="ok")
-
     rows = await session.execute(
-        select(Product, func.coalesce(Category.name, ""))
+        select(
+            Product,
+            func.coalesce(Category.name, ""),
+            func.count().over(),
+        )
         .outerjoin(Category, Product.category_id == Category.id)
         .where(*filters)
         .order_by(Product.sort.asc(), Product.sku.asc())
         .offset(offset)
         .limit(page_size)
     )
-    items = [to_catalog_product(product, category) for product, category in rows.all()]
-    return SearchPage(items=items, page=page, page_size=page_size, total=total, reason="ok")
+    found = rows.all()
+    if found:
+        total = int(found[0][2])
+        items = [to_catalog_product(product, category) for product, category, _total in found]
+        return SearchPage(items=items, page=page, page_size=page_size, total=total, reason="ok")
+    if page <= 1:
+        return SearchPage(items=[], page=page, page_size=page_size, total=0, reason="ok")
+    total = int(
+        await session.scalar(select(func.count()).select_from(Product).where(*filters)) or 0
+    )
+    return SearchPage(items=[], page=page, page_size=page_size, total=total, reason="ok")
 
 
 async def get_product_card(

@@ -19,6 +19,6 @@ async def upsert_user(
             user = await session.get(User, telegram_id)
             if user is None:
                 raise
-    if username:
+    if username is not None and user.username != username:
         user.username = username
     return user

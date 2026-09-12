@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,17 +41,20 @@ def _now(tz_name: str) -> datetime:
     return datetime.now(ZoneInfo(tz_name))
 
 
-async def _get_or_create_category(session: AsyncSession, name: str) -> Category | None:
-    if not name:
-        return None
-    found = await session.execute(select(Category).where(Category.name == name))
-    category = found.scalar_one_or_none()
-    if category is not None:
-        return category
-    category = Category(name=name, sort=0, active=True)
-    session.add(category)
-    await session.flush()
-    return category
+async def _category_map(session: AsyncSession, names: set[str]) -> dict[str, Category]:
+    wanted = {name for name in names if name}
+    if not wanted:
+        return {}
+    found = await session.execute(select(Category).where(Category.name.in_(wanted)))
+    mapping = {row.name: row for row in found.scalars()}
+    missing = wanted - mapping.keys()
+    for name in missing:
+        category = Category(name=name, sort=0, active=True)
+        session.add(category)
+        mapping[name] = category
+    if missing:
+        await session.flush()
+    return mapping
 
 
 async def _rebuild_active_catalog(
@@ -60,24 +64,24 @@ async def _rebuild_active_catalog(
 ) -> None:
     await session.execute(delete(CartItem))
     await session.execute(delete(Product))
-    for row in rows:
-        category = await _get_or_create_category(session, row.category)
-        session.add(
-            Product(
-                sku=row.sku,
-                name=row.name,
-                category_id=category.id if category else None,
-                description=row.description or None,
-                price=row.price,
-                stock=row.stock,
-                unit=row.unit,
-                photo_url=row.photo_url,
-                active=row.active,
-                sort=row.sort,
-                import_id=import_id,
-                search_blob=catalog_search_blob(row.name, row.sku, row.category),
-            )
+    categories = await _category_map(session, {row.category for row in rows})
+    session.add_all(
+        Product(
+            sku=row.sku,
+            name=row.name,
+            category_id=categories[row.category].id if row.category else None,
+            description=row.description or None,
+            price=row.price,
+            stock=row.stock,
+            unit=row.unit,
+            photo_url=row.photo_url,
+            active=row.active,
+            sort=row.sort,
+            import_id=import_id,
+            search_blob=catalog_search_blob(row.name, row.sku, row.category),
         )
+        for row in rows
+    )
 
 
 def _report_from_parse(
@@ -110,8 +114,8 @@ async def apply_price_import(
     redis_url: str | None = None,
 ) -> ImportReport:
     ensure_admin(admin_id, admin_ids)
-    saved = save_import_file(imports_dir, filename, content)
-    parsed = parse_excel(content, max_rows=max_rows)
+    saved = await asyncio.to_thread(save_import_file, imports_dir, filename, content)
+    parsed = await asyncio.to_thread(parse_excel, content, max_rows=max_rows)
     finished = _now(timezone_name)
 
     batch = PriceImport(

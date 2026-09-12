@@ -409,18 +409,21 @@
   }
 
   async function boot() {
-    try {
-      const cats = await api("/api/v1/categories");
-      renderCategories(cats.items || [], state.category);
-    } catch (err) {
-      els.hint.textContent = err.message;
+    const [cats, cart] = await Promise.allSettled([
+      api("/api/v1/categories"),
+      api("/api/v1/cart"),
+    ]);
+    if (cats.status === "fulfilled") {
+      renderCategories(cats.value.items || [], state.category);
+    } else {
+      els.hint.textContent = cats.reason.message;
       els.hint.classList.add("err");
     }
-    try {
-      renderCart(await api("/api/v1/cart"));
-    } catch (err) {
+    if (cart.status === "fulfilled") {
+      renderCart(cart.value);
+    } else {
       renderCart({ items: [], total: "0" });
-      els.hint.textContent = err.message;
+      els.hint.textContent = cart.reason.message;
       els.hint.classList.add("err");
     }
     await loadSearch();

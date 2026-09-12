@@ -2,7 +2,7 @@ from pathlib import Path
 
 from sqlalchemy import func, select
 
-from pricebot.db.models import Product
+from pricebot.db.models import Category, Product
 from pricebot.domain.errors import DomainError
 from pricebot.services.import_catalog import apply_price_import
 from tests.conftest import write_xlsx
@@ -93,6 +93,33 @@ async def test_rejected_import_keeps_old_products(
         )
         assert report.status == "rejected"
         assert await _count_sku(db_session, "KEEP-1") == 1
+
+
+async def test_shared_category_created_once(
+    db_session, test_settings, tmp_path: Path
+) -> None:
+    path = tmp_path / "same-cat.xlsx"
+    write_xlsx(
+        path,
+        HEADERS,
+        [
+            ["A-1", "Один", 10, 1, "Общая", ""],
+            ["A-2", "Два", 20, 1, "Общая", ""],
+            ["A-3", "Три", 30, 1, "Другая", ""],
+        ],
+    )
+    report = await apply_price_import(
+        db_session,
+        content=path.read_bytes(),
+        filename="same-cat.xlsx",
+        admin_id=1001,
+        admin_ids=test_settings.admin_ids,
+        imports_dir=test_settings.imports_dir,
+    )
+    assert report.status == "applied"
+    names = list((await db_session.scalars(select(Category.name))).all())
+    assert names.count("Общая") == 1
+    assert names.count("Другая") == 1
 
 
 async def test_non_admin_cannot_import(db_session, test_settings, tmp_path: Path) -> None:
