@@ -2,6 +2,7 @@ from pricebot.config import Settings
 from pricebot.platform_env import (
     database_host,
     is_compose_only_db_url,
+    normalize_database_url,
     unreachable_database_message,
 )
 from pricebot.db.models import (
@@ -53,6 +54,19 @@ def test_platform_env_rewrites_loopback_urls() -> None:
     assert settings.webapp_url == "https://shop.bothost.tech/app/"
     assert settings.database_url == "postgresql+asyncpg://u:p@pg.internal:5432/db"
     assert settings.redis_url == "redis://redis.internal:6379/0"
+
+
+def test_normalize_bothost_postgresql_url() -> None:
+    raw = "postgresql://u:p@node1.pghost.ru:16100/db"
+    assert normalize_database_url(raw) == "postgresql+asyncpg://u:p@node1.pghost.ru:16100/db"
+    settings = Settings(
+        bot_token="1:token",
+        webapp_url="https://example.invalid/app",
+        database_url=raw,
+        redis_url="redis://localhost:6379/0",
+        _env_file=None,
+    )
+    assert settings.database_url.startswith("postgresql+asyncpg://")
 
 
 def test_compose_postgres_host_is_not_for_bothost() -> None:

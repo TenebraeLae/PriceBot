@@ -6,6 +6,14 @@ LOOPBACK = ("localhost", "127.0.0.1")
 COMPOSE_ONLY_HOSTS = frozenset({"postgres", "redis", *LOOPBACK})
 
 
+def normalize_database_url(url: str) -> str:
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url.removeprefix("postgres://")
+    if url.startswith("postgresql://"):
+        return "postgresql+asyncpg://" + url.removeprefix("postgresql://")
+    return url
+
+
 def is_loopback_url(url: str) -> bool:
     lowered = url.lower()
     return any(host in lowered for host in LOOPBACK)
@@ -43,9 +51,9 @@ def compose_database_url(
     database: str,
 ) -> str:
     if not host:
-        return current
+        return normalize_database_url(current)
     if current and not is_loopback_url(current):
-        return current
+        return normalize_database_url(current)
     login = quote(user, safe="")
     secret = quote(password, safe="")
     name = database or "pricebot"
