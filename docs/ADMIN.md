@@ -16,6 +16,15 @@ docker compose up --build
 
 Webhook Telegram: `POST /telegram/webhook`, заголовок `X-Telegram-Bot-Api-Secret-Token`.
 
+## Bothost
+
+Один контейнер: в панели порт **8080**, свой Dockerfile, главный файл пустой. `BOT_MODE=webhook`.
+
+- Не ставьте `localhost` в `DATABASE_URL` / `REDIS_URL` — в контейнере Postgres/Redis там нет.
+- Включите addon Postgres и Redis; либо задайте `POSTGRES_HOST` / `REDIS_HOST` (или готовые URL с хостом addon).
+- `WEBAPP_URL=https://<домен>/app/`, `PUBLIC_BASE_URL=https://<домен>` (или `DOMAIN` — тогда localhost/http перепишутся).
+- Кнопка Mini App в боте только при `WEBAPP_URL` с `https://`.
+
 ## Оплата ЮKassa
 
 По умолчанию `PAYMENT_PROVIDER=fake` (HMAC, тесты). Для demo/боевого магазина в `.env`:

@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from pricebot.config import Settings, get_settings
 from pricebot.db.session import create_schema, make_engine, make_session_factory
+from pricebot.platform_env import is_loopback_url
 from pricebot.services.notify import TelegramNotifier, set_notifier
 from pricebot.web.admin import router as admin_router
 from pricebot.web.cart import router as cart_router
@@ -33,6 +34,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         return
     Path(settings.imports_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.media_dir).mkdir(parents=True, exist_ok=True)
+
+    if settings.domain and is_loopback_url(settings.database_url):
+        raise RuntimeError(
+            "DATABASE_URL указывает на localhost. В контейнере Bothost нет Postgres. "
+            "Включите аддон PostgreSQL и задайте POSTGRES_HOST или DATABASE_URL "
+            "с хостом сервиса, не localhost."
+        )
     engine = make_engine(settings.database_url)
     try:
         await create_schema(engine)
@@ -48,7 +56,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
             bot = make_bot(settings.bot_token)
             app.state.bot = bot
-            app.state.dispatcher = build_dispatcher(settings, factory)
+            dispatcher = build_dispatcher(settings, factory)
+            app.state.dispatcher = dispatcher
+            await bot.set_webhook(
+                f"{settings.public_base_url.rstrip('/')}/telegram/webhook",
+                secret_token=settings.telegram_webhook_secret,
+                allowed_updates=dispatcher.resolve_used_update_types(),
+            )
         yield
     finally:
         bot = getattr(app.state, "bot", None)

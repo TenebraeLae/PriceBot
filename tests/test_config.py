@@ -29,6 +29,27 @@ def test_admin_ids_comma_separated() -> None:
     assert settings.payment_webhook_secret != settings.telegram_webhook_secret
 
 
+def test_platform_env_rewrites_loopback_urls() -> None:
+    settings = Settings(
+        bot_token="1:token",
+        webapp_url="http://localhost:8080/app/",
+        admin_ids="111",
+        database_url="postgresql+asyncpg://u:p@localhost:5432/db",
+        redis_url="redis://localhost:6379/0",
+        domain="shop.bothost.tech",
+        postgres_host="pg.internal",
+        postgres_user="u",
+        postgres_password="p",
+        postgres_db="db",
+        redis_host="redis.internal",
+        _env_file=None,
+    )
+    assert settings.public_base_url == "https://shop.bothost.tech"
+    assert settings.webapp_url == "https://shop.bothost.tech/app/"
+    assert settings.database_url == "postgresql+asyncpg://u:p@pg.internal:5432/db"
+    assert settings.redis_url == "redis://redis.internal:6379/0"
+
+
 def test_models_have_required_fields() -> None:
     assert User.__tablename__ == "users"
     assert Product.sku.property.columns[0].unique

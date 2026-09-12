@@ -31,6 +31,7 @@ services:
     build: .
     env_file: .env
     environment:
+      # service host, не localhost из .env
       DATABASE_URL: postgresql+asyncpg://pricebot:pricebot@postgres:5432/pricebot
       REDIS_URL: redis://redis:6379/0
       BOT_MODE: webhook
@@ -50,6 +51,7 @@ services:
     command: ["python", "-m", "pricebot.bot.main"]
     env_file: .env
     environment:
+      # service host, не localhost из .env
       DATABASE_URL: postgresql+asyncpg://pricebot:pricebot@postgres:5432/pricebot
       REDIS_URL: redis://redis:6379/0
     volumes:

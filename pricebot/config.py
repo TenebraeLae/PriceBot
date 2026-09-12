@@ -1,8 +1,14 @@
 from functools import lru_cache
-from typing import Any
+from typing import Any, Self
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from pricebot.platform_env import (
+    compose_database_url,
+    compose_public_urls,
+    compose_redis_url,
+)
 
 
 class Settings(BaseSettings):
@@ -38,6 +44,15 @@ class Settings(BaseSettings):
     imports_dir: str = "data/imports"
     backups_dir: str = "data/backups"
     backup_retention_days: int = 7
+    domain: str = ""
+    postgres_user: str = ""
+    postgres_password: str = ""
+    postgres_host: str = ""
+    postgres_port: int = 5432
+    postgres_db: str = ""
+    redis_host: str = ""
+    redis_port: int = 6379
+    redis_password: str = ""
 
     @field_validator("admin_ids", mode="before")
     @classmethod
@@ -50,6 +65,29 @@ class Settings(BaseSettings):
         if not text:
             return []
         return [int(part.strip()) for part in text.split(",") if part.strip()]
+
+    @model_validator(mode="after")
+    def _apply_platform_env(self) -> Self:
+        self.public_base_url, self.webapp_url = compose_public_urls(
+            domain=self.domain,
+            public_base_url=self.public_base_url,
+            webapp_url=self.webapp_url,
+        )
+        self.database_url = compose_database_url(
+            self.database_url,
+            host=self.postgres_host,
+            user=self.postgres_user,
+            password=self.postgres_password,
+            port=self.postgres_port,
+            database=self.postgres_db,
+        )
+        self.redis_url = compose_redis_url(
+            self.redis_url,
+            host=self.redis_host,
+            password=self.redis_password,
+            port=self.redis_port,
+        )
+        return self
 
 
 @lru_cache
