@@ -44,15 +44,14 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 async def require_admin(
     settings: Settings = Depends(get_settings_dep),
-    x_telegram_id: int | None = Header(default=None, alias="X-Telegram-Id"),
+    x_telegram_init_data: str | None = Header(default=None, alias="X-Telegram-Init-Data"),
 ) -> int:
-    if x_telegram_id is None:
-        raise HTTPException(status_code=403, detail="Недостаточно прав")
     try:
-        ensure_admin(x_telegram_id, settings.admin_ids)
-    except DomainError as exc:
-        raise HTTPException(status_code=403, detail=exc.message) from exc
-    return x_telegram_id
+        verified = validate_init_data(x_telegram_init_data, settings.bot_token)
+        ensure_admin(verified.telegram_id, settings.admin_ids)
+    except (InitDataError, DomainError) as exc:
+        raise HTTPException(status_code=403, detail="Недостаточно прав") from exc
+    return verified.telegram_id
 
 
 async def require_webapp_user(
@@ -64,8 +63,14 @@ async def require_webapp_user(
         verified = validate_init_data(x_telegram_init_data, settings.bot_token)
     except InitDataError as exc:
         raise HTTPException(status_code=401, detail="Недействительные данные Telegram") from exc
-    user = await upsert_user(session, verified.telegram_id, verified.username)
-    await session.commit()
+    user = await session.get(User, verified.telegram_id)
+    if user is None:
+        user = await upsert_user(session, verified.telegram_id, verified.username)
+        await session.commit()
+        return user
+    if verified.username is not None and user.username != verified.username:
+        user.username = verified.username
+        await session.commit()
     return user
 
 

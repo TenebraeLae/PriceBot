@@ -14,6 +14,12 @@ class RecentIdSet:
             self._items.popitem(last=False)
         return True
 
+    def discard(self, key: str) -> None:
+        self._items.pop(key, None)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._items
+
 
 SEEN_UPDATES = RecentIdSet()
 SEEN_IMPORTS = RecentIdSet()

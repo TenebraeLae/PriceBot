@@ -10,7 +10,7 @@ from pricebot.web.deps import get_session, get_settings_dep
 from sqlalchemy import text
 
 from pricebot.web.main import app
-from tests.conftest import init_data_headers, make_test_settings, write_xlsx
+from tests.conftest import admin_headers, init_data_headers, make_test_settings, write_xlsx
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -53,17 +53,24 @@ def test_admin_import_and_search_roundtrip(tmp_path: Path) -> None:
             ["sku", "name", "price", "stock", "category", "description"],
             [["CEM-M500", "Цемент М500", "450.00", 12, "Сухие смеси", "Мешок 50 кг"]],
         )
+        spoofed = client.post(
+            "/api/v1/admin/import",
+            files={"file": ("ok.xlsx", path.read_bytes(), XLSX_MIME)},
+            headers={"X-Telegram-Id": "1001"},
+        )
+        assert spoofed.status_code == 403
+
         denied = client.post(
             "/api/v1/admin/import",
             files={"file": ("ok.xlsx", path.read_bytes(), XLSX_MIME)},
-            headers={"X-Telegram-Id": "9"},
+            headers=admin_headers(settings, 9),
         )
         assert denied.status_code == 403
 
         uploaded = client.post(
             "/api/v1/admin/import",
             files={"file": ("ok.xlsx", path.read_bytes(), XLSX_MIME)},
-            headers={"X-Telegram-Id": "1001"},
+            headers=admin_headers(settings),
         )
         assert uploaded.status_code == 200
         body = uploaded.json()
@@ -104,14 +111,14 @@ def test_admin_reject_keeps_catalog(tmp_path: Path) -> None:
         client.post(
             "/api/v1/admin/import",
             files={"file": ("good.xlsx", good.read_bytes(), XLSX_MIME)},
-            headers={"X-Telegram-Id": "1001"},
+            headers=admin_headers(settings),
         )
         bad = tmp_path / "bad.xlsx"
         write_xlsx(bad, ["foo", "bar"], [["a", "b"]])
         rejected = client.post(
             "/api/v1/admin/import",
             files={"file": ("bad.xlsx", bad.read_bytes(), XLSX_MIME)},
-            headers={"X-Telegram-Id": "1001"},
+            headers=admin_headers(settings),
         )
         assert rejected.json()["status"] == "rejected"
 

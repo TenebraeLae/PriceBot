@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import time
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -81,6 +82,7 @@ def write_xlsx(path: Path, headers: list[str], rows: list[list[object]]) -> Path
 
 def make_test_settings(tmp_path: Path, *, admin_id: int = 1001) -> Settings:
     return Settings(
+        _env_file=None,
         bot_token="1:test-token",
         webapp_url="https://example.invalid/app",
         admin_ids=[admin_id],
@@ -91,12 +93,21 @@ def make_test_settings(tmp_path: Path, *, admin_id: int = 1001) -> Settings:
         backups_dir=str(tmp_path / "backups"),
         page_size=10,
         page_size_web=20,
+        domain="",
+        bot_mode="polling",
     )
 
 
-def make_init_data(bot_token: str, telegram_id: int, username: str = "buyer") -> str:
+def make_init_data(
+    bot_token: str,
+    telegram_id: int,
+    username: str = "buyer",
+    *,
+    auth_date: int | None = None,
+) -> str:
     user = json.dumps({"id": telegram_id, "username": username}, separators=(",", ":"))
-    fields = {"auth_date": "1770000000", "query_id": "AAEtest", "user": user}
+    stamp = str(int(time.time()) if auth_date is None else auth_date)
+    fields = {"auth_date": stamp, "query_id": "AAEtest", "user": user}
     check = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()))
     secret = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
     digest = hmac.new(secret, check.encode("utf-8"), hashlib.sha256).hexdigest()
@@ -105,6 +116,19 @@ def make_init_data(bot_token: str, telegram_id: int, username: str = "buyer") ->
 
 def init_data_headers(settings: Settings, telegram_id: int = 555) -> dict[str, str]:
     return {"X-Telegram-Init-Data": make_init_data(settings.bot_token, telegram_id)}
+
+
+def admin_headers(settings: Settings, telegram_id: int | None = None) -> dict[str, str]:
+    admin_id = settings.admin_ids[0] if telegram_id is None else telegram_id
+    return init_data_headers(settings, admin_id)
+
+
+@pytest.fixture(autouse=True)
+def _mute_telegram_webhook(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _skip(*_args, **_kwargs):
+        return True
+
+    monkeypatch.setattr("aiogram.client.bot.Bot.set_webhook", _skip, raising=False)
 
 
 @pytest.fixture

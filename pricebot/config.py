@@ -10,6 +10,9 @@ from pricebot.platform_env import (
     compose_redis_url,
 )
 
+DEFAULT_TELEGRAM_WEBHOOK_SECRET = "change-me-telegram-webhook"
+DEFAULT_PAYMENT_WEBHOOK_SECRET = "change-me-payment-webhook"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -29,12 +32,12 @@ class Settings(BaseSettings):
     page_size_web: int = 20
     max_import_rows: int = 50_000
     payment_provider: str = "fake"
-    payment_webhook_secret: str = "change-me-payment-webhook"
+    payment_webhook_secret: str = DEFAULT_PAYMENT_WEBHOOK_SECRET
     yookassa_shop_id: str = ""
     yookassa_secret_key: str = ""
     yookassa_return_url: str = ""
     yookassa_trusted_ips: str = ""
-    telegram_webhook_secret: str = "change-me-telegram-webhook"
+    telegram_webhook_secret: str = DEFAULT_TELEGRAM_WEBHOOK_SECRET
     allow_paid_broadcast: bool = False
     bot_mode: str = "polling"
     public_base_url: str = "http://localhost:8080"
@@ -89,7 +92,18 @@ class Settings(BaseSettings):
         )
         if self.domain.strip() and self.bot_mode == "polling":
             self.bot_mode = "webhook"
+        self._reject_placeholder_webhook_secret()
         return self
+
+    def _reject_placeholder_webhook_secret(self) -> None:
+        if self.bot_mode == "webhook" and (
+            self.telegram_webhook_secret == DEFAULT_TELEGRAM_WEBHOOK_SECRET
+        ):
+            raise ValueError("TELEGRAM_WEBHOOK_SECRET must be set in webhook mode")
+        if self.domain.strip() and (
+            self.payment_webhook_secret == DEFAULT_PAYMENT_WEBHOOK_SECRET
+        ):
+            raise ValueError("PAYMENT_WEBHOOK_SECRET must be set when DOMAIN is set")
 
 
 @lru_cache

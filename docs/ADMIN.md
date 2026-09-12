@@ -60,7 +60,9 @@ YOOKASSA_TRUSTED_IPS=
 
 Файлы: `data/backups/pricebot-YYYYMMDDTHHMMSS.sql`, ротация `BACKUP_RETENTION_DAYS` (по умолчанию 7).
 
-## Админ API (`X-Telegram-Id` ∈ `ADMIN_IDS`, иначе 403)
+## Админ API (`X-Telegram-Init-Data` подписанный initData, `user.id` ∈ `ADMIN_IDS`, иначе 403)
+
+Голый заголовок `X-Telegram-Id` больше не принимается.
 
 - `POST /api/v1/admin/import` — Excel.
 - `GET /api/v1/admin/orders?number=&telegram_id=&sku=&status=`

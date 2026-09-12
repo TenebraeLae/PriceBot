@@ -15,12 +15,15 @@ from pricebot.domain.telegram import call_with_retry
 from pricebot.services.backup import rotate_backups, write_backup_file
 from pricebot.services.notify import get_notification_log, reset_notifications
 from pricebot.services.load_search import run_search_load
-from tests.conftest import init_data_headers
+from tests.conftest import admin_headers, init_data_headers
 from tests.test_miniapp_api import _cleanup, _client, _import_catalog
 
 MOSCOW = ZoneInfo("Europe/Moscow")
-ADMIN = {"X-Telegram-Id": "1001"}
 USER = 555
+
+
+def _admin(settings):
+    return admin_headers(settings)
 
 
 def _seed(client, tmp_path: Path) -> None:
@@ -44,12 +47,12 @@ def test_admin_forbidden_and_order_filters(tmp_path: Path) -> None:
         _seed(client, tmp_path)
         created = _checkout(client, settings)
         number = created.json()["number"]
-        denied = client.get("/api/v1/admin/orders", headers={"X-Telegram-Id": "9"})
+        denied = client.get("/api/v1/admin/orders", headers=admin_headers(settings, 9))
         assert denied.status_code == 403
         found = client.get(
             "/api/v1/admin/orders",
             params={"number": number, "telegram_id": USER, "sku": "CEM-M500", "status": "awaiting_payment"},
-            headers=ADMIN,
+            headers=_admin(settings),
         )
         assert found.status_code == 200
         assert found.json()["items"][0]["number"] == number
@@ -66,14 +69,14 @@ def test_admin_status_transitions_and_cannot_set_paid(tmp_path: Path) -> None:
         paid = client.post(
             f"/api/v1/admin/orders/{number}/status",
             json={"status": "paid"},
-            headers=ADMIN,
+            headers=_admin(settings),
         )
         assert paid.status_code == 400
 
         cancelled = client.post(
             f"/api/v1/admin/orders/{number}/status",
             json={"status": "cancelled"},
-            headers=ADMIN,
+            headers=_admin(settings),
         )
         assert cancelled.status_code == 200
         assert cancelled.json()["status"] == "cancelled"
@@ -92,13 +95,13 @@ def test_admin_status_transitions_and_cannot_set_paid(tmp_path: Path) -> None:
         processing = client.post(
             f"/api/v1/admin/orders/{other}/status",
             json={"status": "processing"},
-            headers=ADMIN,
+            headers=_admin(settings),
         )
         assert processing.json()["status"] == "processing"
         done = client.post(
             f"/api/v1/admin/orders/{other}/status",
             json={"status": "done"},
-            headers=ADMIN,
+            headers=_admin(settings),
         )
         assert done.json()["status"] == "done"
         assert get_notification_log().count(kind="order_done", order_number=other) == 1
@@ -112,18 +115,18 @@ def test_admin_users_block_unblock(tmp_path: Path) -> None:
         _seed(client, tmp_path)
         web = init_data_headers(settings, USER)
         client.get("/api/v1/search", params={"q": "цемент"}, headers=web)
-        listed = client.get("/api/v1/admin/users", headers=ADMIN)
+        listed = client.get("/api/v1/admin/users", headers=_admin(settings))
         assert listed.status_code == 200
         ids = [item["telegram_id"] for item in listed.json()["items"]]
         assert USER in ids
-        blocked = client.post(f"/api/v1/admin/users/{USER}/block", headers=ADMIN)
+        blocked = client.post(f"/api/v1/admin/users/{USER}/block", headers=_admin(settings))
         assert blocked.json()["status"] == "blocked"
         search = client.get("/api/v1/search", params={"q": "цемент"}, headers=web)
         assert search.json()["reason"] == "user_blocked"
         client.post("/api/v1/cart/items", headers=web, json={"sku": "CEM-M500", "qty": 1})
         refused = client.post("/api/v1/checkout", headers=web, json={})
         assert refused.status_code == 403
-        client.post(f"/api/v1/admin/users/{USER}/unblock", headers=ADMIN)
+        client.post(f"/api/v1/admin/users/{USER}/unblock", headers=_admin(settings))
     finally:
         _cleanup(engine)
 
@@ -144,7 +147,7 @@ def test_promo_create_checkout_and_expired(tmp_path: Path) -> None:
                 "max_uses": 5,
                 "active": True,
             },
-            headers=ADMIN,
+            headers=_admin(settings),
         )
         assert created.status_code == 200
         assert created.json()["code"] == "SALE10"
@@ -170,10 +173,10 @@ def test_promo_create_checkout_and_expired(tmp_path: Path) -> None:
                 "ends_at": (now - timedelta(days=1)).isoformat(),
                 "active": True,
             },
-            headers=ADMIN,
+            headers=_admin(settings),
         )
         assert expired.status_code == 200
-        client.post("/api/v1/admin/promos/OLD/disable", headers=ADMIN)
+        client.post("/api/v1/admin/promos/OLD/disable", headers=_admin(settings))
         refused = _checkout(client, settings, extra={"promo_code": "OLD"})
         assert refused.status_code == 400
     finally:
@@ -189,17 +192,17 @@ def test_ticket_create_and_admin_reply(tmp_path: Path) -> None:
         assert created.status_code == 200
         ticket = created.json()["ticket"]
         assert created.json()["status"] == "open"
-        opened = client.get("/api/v1/admin/tickets", headers=ADMIN)
+        opened = client.get("/api/v1/admin/tickets", headers=_admin(settings))
         assert opened.json()["items"][0]["ticket"] == ticket
         reply = client.post(
             f"/api/v1/admin/tickets/{ticket}/reply",
             json={"text": "Завезём завтра"},
-            headers=ADMIN,
+            headers=_admin(settings),
         )
         assert reply.json()["status"] == "closed"
         assert reply.json()["admin_reply"] == "Завезём завтра"
         assert get_notification_log().count(kind="ticket_reply") == 1
-        all_tickets = client.get("/api/v1/admin/tickets", params={"status": "all"}, headers=ADMIN)
+        all_tickets = client.get("/api/v1/admin/tickets", params={"status": "all"}, headers=_admin(settings))
         assert all_tickets.json()["items"]
     finally:
         _cleanup(engine)
@@ -209,9 +212,9 @@ def test_catalog_xlsx_export(tmp_path: Path) -> None:
     client, settings, factory, engine = _client(tmp_path)
     try:
         _seed(client, tmp_path)
-        denied = client.get("/api/v1/admin/catalog.xlsx", headers={"X-Telegram-Id": "9"})
+        denied = client.get("/api/v1/admin/catalog.xlsx", headers=admin_headers(settings, 9))
         assert denied.status_code == 403
-        exported = client.get("/api/v1/admin/catalog.xlsx", headers=ADMIN)
+        exported = client.get("/api/v1/admin/catalog.xlsx", headers=_admin(settings))
         assert exported.status_code == 200
         book = load_workbook(BytesIO(exported.content), read_only=True)
         rows = list(book.active.iter_rows(values_only=True))

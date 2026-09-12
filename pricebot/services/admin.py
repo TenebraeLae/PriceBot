@@ -18,6 +18,7 @@ from pricebot.db.models import (
 from pricebot.domain.catalog import CatalogProduct
 from pricebot.domain.errors import DomainError
 from pricebot.domain.excel import export_catalog_xlsx
+from pricebot.domain.photo import validate_product_photo
 from pricebot.domain.payments import order_status_label
 from pricebot.domain.promo import PromoKind, MOSCOW
 from pricebot.domain.status import apply_admin_status
@@ -246,6 +247,7 @@ async def attach_product_photo(
     row = result.scalar_one_or_none()
     if row is None:
         raise DomainError("sku_not_found", f"Товар с артикулом {sku} не найден.")
+    validate_product_photo(content)
     root = Path(media_dir)
     root.mkdir(parents=True, exist_ok=True)
     filename = f"{sku}.jpg"

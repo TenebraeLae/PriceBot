@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from pricebot.config import Settings
 from pricebot.platform_env import (
     database_host,
@@ -26,6 +29,9 @@ def test_admin_ids_comma_separated() -> None:
         admin_ids="111,222",
         database_url="postgresql+asyncpg://u:p@localhost/db",
         redis_url="redis://localhost:6379/0",
+        domain="",
+        bot_mode="polling",
+        _env_file=None,
     )
     assert settings.admin_ids == [111, 222]
     assert settings.timezone == "Europe/Moscow"
@@ -43,6 +49,8 @@ def test_platform_env_rewrites_loopback_urls() -> None:
         database_url="postgresql+asyncpg://u:p@localhost:5432/db",
         redis_url="redis://localhost:6379/0",
         domain="shop.bothost.tech",
+        telegram_webhook_secret="webhook-secret-test",
+        payment_webhook_secret="payment-secret-test",
         postgres_host="pg.internal",
         postgres_user="u",
         postgres_password="p",
@@ -57,6 +65,33 @@ def test_platform_env_rewrites_loopback_urls() -> None:
     assert settings.redis_url == "redis://redis.internal:6379/0"
 
 
+def test_webhook_mode_rejects_placeholder_secret() -> None:
+    with pytest.raises(ValidationError, match="TELEGRAM_WEBHOOK_SECRET"):
+        Settings(
+            bot_token="1:token",
+            webapp_url="https://example.invalid/app",
+            admin_ids="111",
+            database_url="postgresql+asyncpg://u:p@localhost/db",
+            redis_url="redis://localhost:6379/0",
+            domain="shop.bothost.tech",
+            _env_file=None,
+        )
+
+
+def test_domain_rejects_placeholder_payment_secret() -> None:
+    with pytest.raises(ValidationError, match="PAYMENT_WEBHOOK_SECRET"):
+        Settings(
+            bot_token="1:token",
+            webapp_url="https://example.invalid/app",
+            admin_ids="111",
+            database_url="postgresql+asyncpg://u:p@localhost/db",
+            redis_url="redis://localhost:6379/0",
+            domain="shop.bothost.tech",
+            telegram_webhook_secret="webhook-secret-test",
+            _env_file=None,
+        )
+
+
 def test_normalize_bothost_postgresql_url() -> None:
     raw = "postgresql://u:p@node1.pghost.ru:16100/db"
     assert normalize_database_url(raw) == "postgresql+asyncpg://u:p@node1.pghost.ru:16100/db"
@@ -65,6 +100,8 @@ def test_normalize_bothost_postgresql_url() -> None:
         webapp_url="https://example.invalid/app",
         database_url=raw,
         redis_url="redis://localhost:6379/0",
+        domain="",
+        bot_mode="polling",
         _env_file=None,
     )
     assert settings.database_url.startswith("postgresql+asyncpg://")
@@ -98,6 +135,17 @@ def test_recent_id_set_dedups() -> None:
     assert seen.add_new("2") is True
     assert seen.add_new("3") is True
     assert seen.add_new("1") is True
+
+
+def test_recent_id_set_discard_allows_retry() -> None:
+    from pricebot.web.update_dedup import RecentIdSet
+
+    seen = RecentIdSet()
+    assert seen.add_new("file-1") is True
+    assert seen.add_new("file-1") is False
+    seen.discard("file-1")
+    assert "file-1" not in seen
+    assert seen.add_new("file-1") is True
 
 
 def test_fastapi_slot_stub() -> None:

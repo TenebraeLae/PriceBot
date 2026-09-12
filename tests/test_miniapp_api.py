@@ -8,7 +8,7 @@ from pricebot.db.models import User
 from pricebot.db.session import create_schema, make_engine, make_session_factory
 from pricebot.web.deps import get_session, get_settings_dep
 from pricebot.web.main import APP_DIR, app
-from tests.conftest import init_data_headers, make_init_data, make_test_settings, write_xlsx
+from tests.conftest import admin_headers, init_data_headers, make_init_data, make_test_settings, write_xlsx
 
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -46,10 +46,11 @@ def _import_catalog(
         or ["sku", "name", "price", "stock", "category", "description", "sort"],
         rows,
     )
+    settings = client.app.dependency_overrides[get_settings_dep]()
     uploaded = client.post(
         "/api/v1/admin/import",
         files={"file": ("cat.xlsx", path.read_bytes(), XLSX_MIME)},
-        headers={"X-Telegram-Id": "1001"},
+        headers=admin_headers(settings),
     )
     assert uploaded.status_code == 200
     assert uploaded.json()["status"] == "applied"

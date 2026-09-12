@@ -3,6 +3,20 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urlparse
 
+from pricebot.domain.errors import DomainError
+
+JPEG_MAGIC = b"\xff\xd8\xff"
+MAX_PRODUCT_PHOTO_BYTES = 2 * 1024 * 1024
+
+
+def validate_product_photo(
+    content: bytes, *, max_bytes: int = MAX_PRODUCT_PHOTO_BYTES
+) -> None:
+    if len(content) > max_bytes:
+        raise DomainError("photo_too_large", "Фото слишком большое.")
+    if len(content) < len(JPEG_MAGIC) or not content.startswith(JPEG_MAGIC):
+        raise DomainError("photo_bad_type", "Нужен файл JPEG.")
+
 
 def safe_sku(raw: str | None) -> str | None:
     text = (raw or "").strip()

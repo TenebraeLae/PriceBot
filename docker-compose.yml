@@ -39,6 +39,9 @@ services:
       - "8080:8080"
     volumes:
       - appdata:/app/data
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,14 +51,19 @@ services:
 
   bot:
     build: .
+    profiles: ["polling"]
     command: ["python", "-m", "pricebot.bot.main"]
     env_file: .env
     environment:
       # service host, не localhost из .env
       DATABASE_URL: postgresql+asyncpg://pricebot:pricebot@postgres:5432/pricebot
       REDIS_URL: redis://redis:6379/0
+      BOT_MODE: polling
     volumes:
       - appdata:/app/data
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
     depends_on:
       postgres:
         condition: service_healthy

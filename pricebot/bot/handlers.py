@@ -27,6 +27,7 @@ from pricebot.bot.texts import (
     BTN_SUPPORT,
     FORBIDDEN,
     GREETING,
+    IMPORT_ALREADY,
     IMPORT_FAILED,
     IMPORT_STARTED,
     MENU_BUTTONS,
@@ -255,6 +256,7 @@ def build_router() -> Router:
             return
         file_key = document.file_unique_id or document.file_id
         if not SEEN_IMPORTS.add_new(file_key):
+            await message.answer(IMPORT_ALREADY)
             return
         await message.answer(IMPORT_STARTED)
         buffer = BytesIO()
@@ -273,9 +275,11 @@ def build_router() -> Router:
                     redis_url=settings.redis_url,
                 )
         except DomainError as exc:
+            SEEN_IMPORTS.discard(file_key)
             await message.answer(exc.message)
             return
         except Exception:
+            SEEN_IMPORTS.discard(file_key)
             logging.getLogger(__name__).exception("xlsx import failed")
             await message.answer(IMPORT_FAILED)
             return
