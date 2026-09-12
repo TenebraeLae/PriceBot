@@ -8,9 +8,10 @@ BTN_SEARCH = "🔎 Поиск"
 BTN_ORDERS = "📦 Мои заказы"
 BTN_INFO = "ℹ️ Информация"
 BTN_SUPPORT = "📞 Поддержка"
+BTN_ADMIN = "🛠 Админка"
 
 MENU_BUTTONS = frozenset(
-    {BTN_CATALOG, BTN_SEARCH, BTN_ORDERS, BTN_INFO, BTN_SUPPORT}
+    {BTN_CATALOG, BTN_SEARCH, BTN_ORDERS, BTN_INFO, BTN_SUPPORT, BTN_ADMIN}
 )
 
 GREETING = "Добро пожаловать. Выберите пункт меню или введите название товара."
@@ -25,8 +26,13 @@ ORDERS_EMPTY = "Заказов пока нет."
 QR_CAPTION = "Заказ {number}. К оплате {total} ₽."
 SUPPORT_PROMPT = "Напишите сообщение — ответим в этом чате."
 SUPPORT_ACCEPTED = "Обращение {ticket} принято. Ответим в этом чате."
-SUPPORT_REPLY_HINT = "Формат: /reply T-YYYYMMDD-XXXX текст"
+SUPPORT_REPLY_HINT = "Нажмите «Ответить» под обращением или откройте Админку."
 SUPPORT_REPLY_OK = "Ответ по {ticket} отправлен."
+ADMIN_HOME = (
+    "Открытые обращения — кнопка ниже. Прайс — пришлите .xlsx в этот чат."
+)
+ADMIN_TICKETS_EMPTY = "Открытых обращений нет."
+ADMIN_REPLY_PROMPT = "Напишите ответ — отправим пользователю в этот чат."
 NOT_FOUND = "Ничего не найдено."
 INFO_FALLBACK = "Прайс и заказы в Telegram."
 DESC_LIMIT = 200

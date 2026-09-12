@@ -7,12 +7,20 @@ from aiogram.types import BufferedInputFile, CallbackQuery, FSInputFile, Message
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from pricebot.bot.keyboards import (
+    CALLBACK_ADMIN_LIST,
+    CALLBACK_ADMIN_REPLY,
     CALLBACK_PAGE_PREFIX,
+    admin_home_keyboard,
     is_https_webapp_url,
     main_keyboard,
     search_inline_keyboard,
+    ticket_reply_keyboard,
 )
 from pricebot.bot.texts import (
+    ADMIN_HOME,
+    ADMIN_REPLY_PROMPT,
+    ADMIN_TICKETS_EMPTY,
+    BTN_ADMIN,
     BTN_CATALOG,
     BTN_INFO,
     BTN_ORDERS,
@@ -44,7 +52,7 @@ from pricebot.services.orders import (
     list_user_orders,
     payment_payload_url,
 )
-from pricebot.services.admin import reply_ticket
+from pricebot.services.admin import list_admin_tickets, reply_ticket
 from pricebot.services.search import LastQueryStore, search_products_db
 from pricebot.services.tickets import create_ticket
 from pricebot.services.users import upsert_user
@@ -64,6 +72,25 @@ class SupportPendingStore:
         return False
 
 
+class AdminReplyPendingStore:
+    def __init__(self) -> None:
+        self._pending: dict[int, str] = {}
+
+    def mark(self, user_id: int, ticket: str) -> None:
+        self._pending[user_id] = ticket
+
+    def take(self, user_id: int) -> str | None:
+        return self._pending.pop(user_id, None)
+
+
+def _is_admin(user, settings: Settings) -> bool:
+    return user is not None and user.id in settings.admin_ids
+
+
+def _menu_markup(settings: Settings, user):
+    return main_keyboard(settings.webapp_url, admin=_is_admin(user, settings))
+
+
 def build_router() -> Router:
     router = Router()
 
@@ -78,7 +105,7 @@ def build_router() -> Router:
             async with session_factory() as session:
                 await upsert_user(session, user.id, user.username)
                 await session.commit()
-        await message.answer(GREETING, reply_markup=main_keyboard(settings.webapp_url))
+        await message.answer(GREETING, reply_markup=_menu_markup(settings, user))
 
     @router.message(F.text == BTN_CATALOG)
     async def menu_catalog(message: Message, settings: Settings) -> None:
@@ -128,6 +155,59 @@ def build_router() -> Router:
         if user is not None:
             support_store.mark(user.id)
         await message.answer(SUPPORT_PROMPT)
+
+    @router.message(F.text == BTN_ADMIN)
+    async def menu_admin(message: Message, settings: Settings) -> None:
+        if not _is_admin(message.from_user, settings):
+            await message.answer(FORBIDDEN)
+            return
+        await message.answer(ADMIN_HOME, reply_markup=admin_home_keyboard())
+
+    @router.callback_query(F.data == CALLBACK_ADMIN_LIST)
+    async def admin_list_tickets(
+        callback: CallbackQuery,
+        session_factory: async_sessionmaker[AsyncSession],
+        settings: Settings,
+    ) -> None:
+        if not _is_admin(callback.from_user, settings):
+            await callback.answer(FORBIDDEN, show_alert=True)
+            return
+        async with session_factory() as session:
+            rows = await list_admin_tickets(session, status="open")
+        target = callback.message
+        if not rows:
+            if target is not None:
+                await target.answer(ADMIN_TICKETS_EMPTY)
+            await callback.answer()
+            return
+        if target is None:
+            await callback.answer()
+            return
+        for row in rows:
+            body = f"Обращение {row.ticket} от {row.user_id}:\n{row.message}"
+            await target.answer(body, reply_markup=ticket_reply_keyboard(row.ticket))
+        await callback.answer()
+
+    @router.callback_query(F.data.startswith(CALLBACK_ADMIN_REPLY))
+    async def admin_reply_begin(
+        callback: CallbackQuery,
+        settings: Settings,
+        admin_reply_store: AdminReplyPendingStore,
+    ) -> None:
+        if not _is_admin(callback.from_user, settings):
+            await callback.answer(FORBIDDEN, show_alert=True)
+            return
+        ticket = (callback.data or "")[len(CALLBACK_ADMIN_REPLY) :]
+        if not ticket:
+            await callback.answer()
+            return
+        user = callback.from_user
+        if user is not None:
+            admin_reply_store.mark(user.id, ticket)
+        target = callback.message
+        if target is not None:
+            await target.answer(ADMIN_REPLY_PROMPT)
+        await callback.answer()
 
     @router.message(Command("reply"))
     async def admin_reply_ticket(
@@ -201,12 +281,28 @@ def build_router() -> Router:
         settings: Settings,
         query_store: LastQueryStore,
         support_store: SupportPendingStore,
+        admin_reply_store: AdminReplyPendingStore,
     ) -> None:
         text = (message.text or "").strip()
         if not text or text in MENU_BUTTONS:
             return
         user = message.from_user
         owner_id = user.id if user is not None else message.chat.id
+        pending_ticket = admin_reply_store.take(owner_id)
+        if pending_ticket:
+            if not _is_admin(user, settings):
+                await message.answer(FORBIDDEN)
+                return
+            async with session_factory() as session:
+                try:
+                    row = await reply_ticket(
+                        session, ticket=pending_ticket, text=text, settings=settings
+                    )
+                except DomainError as exc:
+                    await message.answer(exc.message)
+                    return
+            await message.answer(SUPPORT_REPLY_OK.format(ticket=row.ticket))
+            return
         if support_store.take(owner_id):
             async with session_factory() as session:
                 await upsert_user(session, owner_id, user.username if user else None)

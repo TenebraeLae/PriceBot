@@ -7,6 +7,7 @@ from aiogram.types import (
 )
 
 from pricebot.bot.texts import (
+    BTN_ADMIN,
     BTN_CATALOG,
     BTN_INFO,
     BTN_ORDERS,
@@ -16,6 +17,8 @@ from pricebot.bot.texts import (
 from pricebot.domain.catalog import SearchPage
 
 CALLBACK_PAGE_PREFIX = "s:"
+CALLBACK_ADMIN_REPLY = "a:r:"
+CALLBACK_ADMIN_LIST = "a:list"
 
 
 def is_https_webapp_url(url: str) -> bool:
@@ -28,14 +31,40 @@ def catalog_button(webapp_url: str) -> KeyboardButton:
     return KeyboardButton(text=BTN_CATALOG)
 
 
-def main_keyboard(webapp_url: str) -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [catalog_button(webapp_url)],
-            [KeyboardButton(text=BTN_SEARCH), KeyboardButton(text=BTN_ORDERS)],
-            [KeyboardButton(text=BTN_INFO), KeyboardButton(text=BTN_SUPPORT)],
-        ],
-        resize_keyboard=True,
+def main_keyboard(webapp_url: str, *, admin: bool = False) -> ReplyKeyboardMarkup:
+    rows = [
+        [catalog_button(webapp_url)],
+        [KeyboardButton(text=BTN_SEARCH), KeyboardButton(text=BTN_ORDERS)],
+        [KeyboardButton(text=BTN_INFO), KeyboardButton(text=BTN_SUPPORT)],
+    ]
+    if admin:
+        rows.append([KeyboardButton(text=BTN_ADMIN)])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
+
+def ticket_reply_keyboard(ticket: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Ответить",
+                    callback_data=f"{CALLBACK_ADMIN_REPLY}{ticket}",
+                )
+            ]
+        ]
+    )
+
+
+def admin_home_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Открытые обращения",
+                    callback_data=CALLBACK_ADMIN_LIST,
+                )
+            ]
+        ]
     )
 
 

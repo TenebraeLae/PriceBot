@@ -5,7 +5,7 @@ from pathlib import Path
 from aiogram import Dispatcher
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from pricebot.bot.handlers import SupportPendingStore, build_router
+from pricebot.bot.handlers import AdminReplyPendingStore, SupportPendingStore, build_router
 from pricebot.bot.session import make_bot
 from pricebot.bot.texts import default_info_path
 from pricebot.config import Settings, get_settings
@@ -24,6 +24,7 @@ def build_dispatcher(
     dispatcher["session_factory"] = session_factory
     dispatcher["query_store"] = query_store or LastQueryStore()
     dispatcher["support_store"] = SupportPendingStore()
+    dispatcher["admin_reply_store"] = AdminReplyPendingStore()
     dispatcher["info_path"] = info_path or default_info_path()
     dispatcher.include_router(build_router())
     return dispatcher

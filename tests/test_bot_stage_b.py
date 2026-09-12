@@ -1,8 +1,16 @@
 from pathlib import Path
 
-from pricebot.bot.keyboards import CALLBACK_PAGE_PREFIX, main_keyboard, search_inline_keyboard
+from pricebot.bot.handlers import AdminReplyPendingStore
+from pricebot.bot.keyboards import (
+    CALLBACK_ADMIN_REPLY,
+    CALLBACK_PAGE_PREFIX,
+    main_keyboard,
+    search_inline_keyboard,
+    ticket_reply_keyboard,
+)
 from pricebot.bot.main import build_dispatcher
 from pricebot.bot.texts import (
+    BTN_ADMIN,
     BTN_CATALOG,
     BTN_INFO,
     BTN_ORDERS,
@@ -38,12 +46,33 @@ def test_main_keyboard_skips_webapp_on_http() -> None:
     assert markup.keyboard[0][0].web_app is None
 
 
+def test_main_keyboard_admin_includes_admin_button() -> None:
+    markup = main_keyboard("https://example.invalid/app", admin=True)
+    labels = [button.text for row in markup.keyboard for button in row]
+    assert BTN_ADMIN in labels
+    assert markup.keyboard[3][0].text == BTN_ADMIN
+
+
+def test_ticket_reply_keyboard_callback_data() -> None:
+    markup = ticket_reply_keyboard("T-20260912-0001")
+    button = markup.inline_keyboard[0][0]
+    assert button.text == "Ответить"
+    assert button.callback_data == f"{CALLBACK_ADMIN_REPLY}T-20260912-0001"
+
+
+def test_admin_reply_pending_store_mark_take() -> None:
+    store = AdminReplyPendingStore()
+    store.mark(1001, "T-20260912-0001")
+    assert store.take(1001) == "T-20260912-0001"
+    assert store.take(1001) is None
+
+
 def test_info_orders_support_and_greeting_texts() -> None:
     info = load_info_text()
     assert "Прайс" in info
     assert ORDERS_EMPTY == "Заказов пока нет."
     assert SUPPORT_PROMPT.startswith("Напишите")
-    assert SUPPORT_REPLY_HINT.startswith("Формат: /reply")
+    assert "Ответить" in SUPPORT_REPLY_HINT or "Админк" in SUPPORT_REPLY_HINT
     assert GREETING
     assert "Введите запрос" in PROMPT_SEARCH
     assert FORBIDDEN == "Недостаточно прав."
@@ -104,3 +133,4 @@ def test_dispatcher_wires_workflow(tmp_path: Path) -> None:
     assert dispatcher.sub_routers
     assert dispatcher["settings"] is settings
     assert isinstance(dispatcher["query_store"], LastQueryStore)
+    assert isinstance(dispatcher["admin_reply_store"], AdminReplyPendingStore)

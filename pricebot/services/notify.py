@@ -14,22 +14,28 @@ class Notice:
 
 
 class Notifier(Protocol):
-    async def send(self, chat_id: int, text: str) -> None: ...
+    async def send(
+        self, chat_id: int, text: str, reply_markup: object | None = None
+    ) -> None: ...
 
 
 class RecordingNotifier:
     def __init__(self) -> None:
         self.sent: list[Notice] = []
 
-    async def send(self, chat_id: int, text: str) -> None:
-        del chat_id, text
+    async def send(
+        self, chat_id: int, text: str, reply_markup: object | None = None
+    ) -> None:
+        del chat_id, text, reply_markup
 
 
 class TelegramNotifier:
     def __init__(self, token: str) -> None:
         self.token = token
 
-    async def send(self, chat_id: int, text: str) -> None:
+    async def send(
+        self, chat_id: int, text: str, reply_markup: object | None = None
+    ) -> None:
         import asyncio
 
         from aiogram.exceptions import TelegramAPIError
@@ -40,7 +46,7 @@ class TelegramNotifier:
         bot = make_bot(self.token)
         try:
             await call_with_retry(
-                lambda: bot.send_message(chat_id, text),
+                lambda: bot.send_message(chat_id, text, reply_markup=reply_markup),
                 sleeper=asyncio.sleep,
             )
         except (TelegramAPIError, OSError):
@@ -146,6 +152,9 @@ async def notify_ticket_created(
     _log.emit("ticket_created", user_id, user_text, ticket)
     await _notifier.send(user_id, user_text)
     admin_text = f"Новое обращение {ticket} от {user_id}: {message}"
+    from pricebot.bot.keyboards import ticket_reply_keyboard
+
+    markup = ticket_reply_keyboard(ticket)
     for admin_id in settings.admin_ids:
         _log.emit("admin_ticket", admin_id, admin_text, ticket)
-        await _notifier.send(admin_id, admin_text)
+        await _notifier.send(admin_id, admin_text, markup)
