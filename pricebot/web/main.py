@@ -4,13 +4,17 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from sqlalchemy.exc import SQLAlchemyError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from pricebot.config import Settings, get_settings
 from pricebot.db.session import create_schema, make_engine, make_session_factory
-from pricebot.platform_env import is_loopback_url
+from pricebot.platform_env import (
+    is_compose_only_db_url,
+    unreachable_database_message,
+)
 from pricebot.services.notify import TelegramNotifier, set_notifier
 from pricebot.web.admin import router as admin_router
 from pricebot.web.cart import router as cart_router
@@ -35,15 +39,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     Path(settings.imports_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.media_dir).mkdir(parents=True, exist_ok=True)
 
-    if settings.domain and is_loopback_url(settings.database_url):
-        raise RuntimeError(
-            "DATABASE_URL указывает на localhost. В контейнере Bothost нет Postgres. "
-            "Включите аддон PostgreSQL и задайте POSTGRES_HOST или DATABASE_URL "
-            "с хостом сервиса, не localhost."
-        )
+    if settings.domain and is_compose_only_db_url(settings.database_url):
+        raise RuntimeError(unreachable_database_message(settings.database_url))
     engine = make_engine(settings.database_url)
     try:
-        await create_schema(engine)
+        try:
+            await create_schema(engine)
+        except (OSError, SQLAlchemyError) as exc:
+            raise RuntimeError(unreachable_database_message(settings.database_url)) from exc
         factory = make_session_factory(engine)
         set_session_factory(factory)
         set_notifier(TelegramNotifier(settings.bot_token))

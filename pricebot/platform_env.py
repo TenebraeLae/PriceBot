@@ -1,11 +1,31 @@
 from urllib.parse import quote
 
+from sqlalchemy.engine.url import make_url
+
 LOOPBACK = ("localhost", "127.0.0.1")
+COMPOSE_ONLY_HOSTS = frozenset({"postgres", "redis", *LOOPBACK})
 
 
 def is_loopback_url(url: str) -> bool:
     lowered = url.lower()
     return any(host in lowered for host in LOOPBACK)
+
+
+def database_host(url: str) -> str:
+    return (make_url(url).host or "").lower()
+
+
+def is_compose_only_db_url(url: str) -> bool:
+    return database_host(url) in COMPOSE_ONLY_HOSTS
+
+
+def unreachable_database_message(url: str) -> str:
+    host = database_host(url) or "?"
+    return (
+        f"PostgreSQL недоступен: хост {host!r} не резолвится в этом контейнере. "
+        "На Bothost нельзя использовать localhost или postgres из docker-compose. "
+        "Откройте карточку аддона PostgreSQL и скопируйте POSTGRES_HOST / DATABASE_URL оттуда."
+    )
 
 
 def public_https_base(domain: str) -> str:

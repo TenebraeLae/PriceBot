@@ -1,4 +1,9 @@
 from pricebot.config import Settings
+from pricebot.platform_env import (
+    database_host,
+    is_compose_only_db_url,
+    unreachable_database_message,
+)
 from pricebot.db.models import (
     Cart,
     Category,
@@ -48,6 +53,13 @@ def test_platform_env_rewrites_loopback_urls() -> None:
     assert settings.webapp_url == "https://shop.bothost.tech/app/"
     assert settings.database_url == "postgresql+asyncpg://u:p@pg.internal:5432/db"
     assert settings.redis_url == "redis://redis.internal:6379/0"
+
+
+def test_compose_postgres_host_is_not_for_bothost() -> None:
+    url = "postgresql+asyncpg://u:p@postgres:5432/pricebot"
+    assert database_host(url) == "postgres"
+    assert is_compose_only_db_url(url)
+    assert "postgres" in unreachable_database_message(url)
 
 
 def test_models_have_required_fields() -> None:
