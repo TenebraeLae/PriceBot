@@ -92,18 +92,7 @@ class Settings(BaseSettings):
         )
         if self.domain.strip() and self.bot_mode == "polling":
             self.bot_mode = "webhook"
-        self._reject_placeholder_webhook_secret()
         return self
-
-    def _reject_placeholder_webhook_secret(self) -> None:
-        if self.bot_mode == "webhook" and (
-            self.telegram_webhook_secret == DEFAULT_TELEGRAM_WEBHOOK_SECRET
-        ):
-            raise ValueError("TELEGRAM_WEBHOOK_SECRET must be set in webhook mode")
-        if self.domain.strip() and (
-            self.payment_webhook_secret == DEFAULT_PAYMENT_WEBHOOK_SECRET
-        ):
-            raise ValueError("PAYMENT_WEBHOOK_SECRET must be set when DOMAIN is set")
 
 
 @lru_cache

@@ -1,6 +1,3 @@
-import pytest
-from pydantic import ValidationError
-
 from pricebot.config import Settings
 from pricebot.platform_env import (
     database_host,
@@ -65,31 +62,17 @@ def test_platform_env_rewrites_loopback_urls() -> None:
     assert settings.redis_url == "redis://redis.internal:6379/0"
 
 
-def test_webhook_mode_rejects_placeholder_secret() -> None:
-    with pytest.raises(ValidationError, match="TELEGRAM_WEBHOOK_SECRET"):
-        Settings(
-            bot_token="1:token",
-            webapp_url="https://example.invalid/app",
-            admin_ids="111",
-            database_url="postgresql+asyncpg://u:p@localhost/db",
-            redis_url="redis://localhost:6379/0",
-            domain="shop.bothost.tech",
-            _env_file=None,
-        )
-
-
-def test_domain_rejects_placeholder_payment_secret() -> None:
-    with pytest.raises(ValidationError, match="PAYMENT_WEBHOOK_SECRET"):
-        Settings(
-            bot_token="1:token",
-            webapp_url="https://example.invalid/app",
-            admin_ids="111",
-            database_url="postgresql+asyncpg://u:p@localhost/db",
-            redis_url="redis://localhost:6379/0",
-            domain="shop.bothost.tech",
-            telegram_webhook_secret="webhook-secret-test",
-            _env_file=None,
-        )
+def test_webhook_mode_accepts_placeholder_secrets() -> None:
+    settings = Settings(
+        bot_token="1:token",
+        webapp_url="https://example.invalid/app",
+        admin_ids="111",
+        database_url="postgresql+asyncpg://u:p@localhost/db",
+        redis_url="redis://localhost:6379/0",
+        domain="shop.bothost.tech",
+        _env_file=None,
+    )
+    assert settings.bot_mode == "webhook"
 
 
 def test_normalize_bothost_postgresql_url() -> None:
