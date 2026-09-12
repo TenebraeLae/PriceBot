@@ -234,7 +234,8 @@
 
   function renderCart(cart) {
     const items = (cart && cart.items) || [];
-    els.cartCount.textContent = String(items.length);
+    const pieceCount = items.reduce((sum, line) => sum + (Number(line.qty) || 0), 0);
+    els.cartCount.textContent = String(pieceCount);
     els.cartTotal.textContent = money((cart && cart.total) || "0");
     els.cartItems.replaceChildren();
     for (const line of items) {
