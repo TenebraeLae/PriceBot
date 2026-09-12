@@ -4,8 +4,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-COPY pyproject.toml README.md ./
-COPY docs/TZ.md ./docs/TZ.md
+COPY pyproject.toml ./
 COPY pricebot ./pricebot
 COPY content ./content
 COPY scripts ./scripts

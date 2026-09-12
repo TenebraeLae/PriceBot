@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "pricebot"
 version = "0.1.0"
 description = "Telegram price-list storefront (bot + Mini App)"
-readme = "docs/TZ.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiogram>=3.13",
