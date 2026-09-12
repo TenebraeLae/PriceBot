@@ -4,10 +4,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from sqlalchemy.exc import SQLAlchemyError
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pricebot.config import Settings, get_settings
 from pricebot.db.session import create_schema, make_engine, make_session_factory
@@ -83,7 +85,7 @@ mount_metrics(app)
 
 @app.exception_handler(Exception)
 async def unhandled_error(_request: Request, exc: Exception) -> JSONResponse:
-    if isinstance(exc, HTTPException):
+    if isinstance(exc, (HTTPException, StarletteHTTPException, RequestValidationError)):
         raise exc
     logger.exception("unhandled error")
     return JSONResponse(status_code=500, content={"detail": "Внутренняя ошибка"})

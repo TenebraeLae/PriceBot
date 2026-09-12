@@ -71,7 +71,14 @@
     }
     if (!res.ok) {
       const detail = body && body.detail;
-      let msg = typeof detail === "string" ? detail : "Запрос не выполнен";
+      let msg = "Запрос не выполнен";
+      if (typeof detail === "string") {
+        msg = detail;
+      } else if (Array.isArray(detail) && detail[0] && detail[0].msg) {
+        msg = String(detail[0].msg);
+      } else if (res.status === 502 || res.status === 504 || body == null) {
+        msg = "Сервер не ответил. Подождите секунду и нажмите ещё раз.";
+      }
       if (res.status === 401) {
         msg = "Откройте витрину через кнопку меню в боте.";
       }
@@ -135,8 +142,10 @@
     add.type = "button";
     add.className = "add";
     add.textContent = "В корзину";
+    const cap = Number(stock);
     const bump = (delta) => {
-      const next = Math.max(1, Number(input.value || 1) + delta);
+      let next = Math.max(1, Number(input.value || 1) + delta);
+      if (Number.isFinite(cap) && cap > 0) next = Math.min(next, cap);
       input.value = String(next);
     };
     minus.addEventListener("click", () => bump(-1));
@@ -144,10 +153,11 @@
     add.addEventListener("click", async () => {
       add.disabled = true;
       try {
+        const qty = Math.max(1, Number(input.value) || 1);
         await api("/api/v1/cart/items", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sku, qty: input.value, price: "0" }),
+          body: JSON.stringify({ sku, qty }),
         }).then(renderCart);
       } catch (err) {
         els.hint.textContent = err.message;
@@ -407,8 +417,10 @@
     }
     try {
       renderCart(await api("/api/v1/cart"));
-    } catch {
+    } catch (err) {
       renderCart({ items: [], total: "0" });
+      els.hint.textContent = err.message;
+      els.hint.classList.add("err");
     }
     await loadSearch();
   }
