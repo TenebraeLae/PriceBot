@@ -135,4 +135,12 @@ async def media_file(
     return FileResponse(target)
 
 
+@app.get("/favicon.ico")
+async def favicon() -> FileResponse:
+    icon = APP_DIR / "favicon.ico"
+    if not icon.is_file():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    return FileResponse(icon)
+
+
 app.mount("/app", StaticFiles(directory=APP_DIR, html=True), name="miniapp")

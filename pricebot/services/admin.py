@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +21,7 @@ from pricebot.domain.excel import export_catalog_xlsx
 from pricebot.domain.payments import order_status_label
 from pricebot.domain.promo import PromoKind, MOSCOW
 from pricebot.domain.status import apply_admin_status
+from pricebot.services.cache import invalidate_search_cache
 from pricebot.services.notify import notify_order_status, notify_ticket_reply
 from pricebot.services.search import to_catalog_product
 from pricebot.config import Settings
@@ -230,6 +232,28 @@ def ticket_json(row: SupportTicket) -> dict[str, object]:
         "admin_reply": row.admin_reply,
         "status": row.status,
     }
+
+
+async def attach_product_photo(
+    session: AsyncSession,
+    *,
+    sku: str,
+    content: bytes,
+    media_dir: str,
+    redis_url: str | None = None,
+) -> Product:
+    result = await session.execute(select(Product).where(Product.sku == sku))
+    row = result.scalar_one_or_none()
+    if row is None:
+        raise DomainError("sku_not_found", f"Товар с артикулом {sku} не найден.")
+    root = Path(media_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    filename = f"{sku}.jpg"
+    (root / filename).write_bytes(content)
+    row.photo_url = filename
+    await session.commit()
+    await invalidate_search_cache(redis_url)
+    return row
 
 
 async def export_catalog_bytes(session: AsyncSession) -> bytes:

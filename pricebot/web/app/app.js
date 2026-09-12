@@ -71,7 +71,11 @@
     }
     if (!res.ok) {
       const detail = body && body.detail;
-      throw new Error(typeof detail === "string" ? detail : "Запрос не выполнен");
+      let msg = typeof detail === "string" ? detail : "Запрос не выполнен";
+      if (res.status === 401) {
+        msg = "Откройте витрину через кнопку меню в боте.";
+      }
+      throw new Error(msg);
     }
     return body;
   }
@@ -84,6 +88,13 @@
 
   function money(value) {
     return `${value} ₽`;
+  }
+
+  function stockLabel(item) {
+    if (item.stock == null || item.stock === "") return "";
+    const numeric = Number(item.stock);
+    const qty = Number.isFinite(numeric) ? String(numeric) : String(item.stock);
+    return item.unit ? `остаток ${qty} ${item.unit}` : `остаток ${qty}`;
   }
 
   function renderCategories(items, active) {
@@ -186,7 +197,13 @@
       const avail = document.createElement("span");
       avail.className = "avail" + (item.availability === "нет" ? " out" : "");
       avail.textContent = item.availability;
+      const stock = document.createElement("span");
+      stock.className = "stock" + (item.availability === "нет" ? " out" : "");
+      stock.textContent = stockLabel(item);
       priceRow.append(price, avail);
+      if (stock.textContent) {
+        priceRow.append(stock);
+      }
       body.append(sku, name, meta, priceRow, qtyInput(item.sku, item.stock));
       card.append(media, body);
       els.cards.append(card);

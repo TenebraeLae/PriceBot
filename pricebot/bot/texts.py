@@ -11,7 +11,7 @@ BTN_SUPPORT = "📞 Поддержка"
 BTN_ADMIN = "🛠 Админка"
 
 MENU_BUTTONS = frozenset(
-    {BTN_CATALOG, BTN_SEARCH, BTN_ORDERS, BTN_INFO, BTN_SUPPORT, BTN_ADMIN}
+    {BTN_SEARCH, BTN_ORDERS, BTN_INFO, BTN_SUPPORT, BTN_ADMIN}
 )
 
 GREETING = "Добро пожаловать. Выберите пункт меню или введите название товара."
@@ -35,6 +35,9 @@ ADMIN_TICKETS_EMPTY = "Открытых обращений нет."
 ADMIN_REPLY_PROMPT = "Напишите ответ — отправим пользователю в этот чат."
 IMPORT_STARTED = "Файл принят. Загружаю прайс…"
 IMPORT_FAILED = "Не удалось загрузить прайс. Пришлите .xlsx ещё раз."
+PHOTO_NEED_CAPTION = "Подпишите фото артикулом (SKU) из прайса."
+PHOTO_BAD_SKU = "Некорректный артикул в подписи."
+PHOTO_SAVED = "Фото привязано к {sku}."
 NOT_FOUND = "Ничего не найдено."
 INFO_FALLBACK = "Прайс и заказы в Telegram."
 DESC_LIMIT = 200

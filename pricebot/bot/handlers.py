@@ -12,7 +12,6 @@ from pricebot.bot.keyboards import (
     CALLBACK_ADMIN_REPLY,
     CALLBACK_PAGE_PREFIX,
     admin_home_keyboard,
-    is_https_webapp_url,
     main_keyboard,
     search_inline_keyboard,
     ticket_reply_keyboard,
@@ -22,17 +21,18 @@ from pricebot.bot.texts import (
     ADMIN_REPLY_PROMPT,
     ADMIN_TICKETS_EMPTY,
     BTN_ADMIN,
-    BTN_CATALOG,
     BTN_INFO,
     BTN_ORDERS,
     BTN_SEARCH,
     BTN_SUPPORT,
-    CATALOG_NEED_HTTPS,
     FORBIDDEN,
     GREETING,
     IMPORT_FAILED,
     IMPORT_STARTED,
     MENU_BUTTONS,
+    PHOTO_BAD_SKU,
+    PHOTO_NEED_CAPTION,
+    PHOTO_SAVED,
     PROMPT_SEARCH,
     QR_CAPTION,
     SUPPORT_ACCEPTED,
@@ -46,7 +46,7 @@ from pricebot.bot.texts import (
 from pricebot.config import Settings
 from pricebot.domain.errors import DomainError
 from pricebot.domain.payments import OrderStatus
-from pricebot.domain.photo import is_http_photo, local_media_path, resolve_product_photo
+from pricebot.domain.photo import is_http_photo, local_media_path, resolve_product_photo, safe_sku
 from pricebot.domain.qr import render_qr
 from pricebot.services.import_catalog import apply_price_import
 from pricebot.services.orders import (
@@ -55,7 +55,7 @@ from pricebot.services.orders import (
     list_user_orders,
     payment_payload_url,
 )
-from pricebot.services.admin import list_admin_tickets, reply_ticket
+from pricebot.services.admin import attach_product_photo, list_admin_tickets, reply_ticket
 from pricebot.services.search import LastQueryStore, search_products_db
 from pricebot.services.tickets import create_ticket
 from pricebot.services.users import upsert_user
@@ -109,12 +109,6 @@ def build_router() -> Router:
                 await upsert_user(session, user.id, user.username)
                 await session.commit()
         await message.answer(GREETING, reply_markup=_menu_markup(settings, user))
-
-    @router.message(F.text == BTN_CATALOG)
-    async def menu_catalog(message: Message, settings: Settings) -> None:
-        if is_https_webapp_url(settings.webapp_url):
-            return
-        await message.answer(CATALOG_NEED_HTTPS)
 
     @router.message(F.text == BTN_SEARCH)
     async def menu_search(message: Message) -> None:
@@ -282,6 +276,44 @@ def build_router() -> Router:
             await message.answer(IMPORT_FAILED)
             return
         await message.answer(format_import_report(report))
+
+    @router.message(F.photo)
+    async def admin_product_photo(
+        message: Message,
+        bot: Bot,
+        session_factory: async_sessionmaker[AsyncSession],
+        settings: Settings,
+    ) -> None:
+        if not _is_admin(message.from_user, settings):
+            await message.answer(FORBIDDEN)
+            return
+        caption = (message.caption or '').strip()
+        if not caption:
+            await message.answer(PHOTO_NEED_CAPTION)
+            return
+        sku = safe_sku(caption.split()[0])
+        if sku is None:
+            await message.answer(PHOTO_BAD_SKU)
+            return
+        photos = message.photo or []
+        if not photos:
+            await message.answer(PHOTO_NEED_CAPTION)
+            return
+        buffer = BytesIO()
+        try:
+            await bot.download(photos[-1], destination=buffer)
+            async with session_factory() as session:
+                await attach_product_photo(
+                    session,
+                    sku=sku,
+                    content=buffer.getvalue(),
+                    media_dir=settings.media_dir,
+                    redis_url=settings.redis_url,
+                )
+        except DomainError as exc:
+            await message.answer(exc.message)
+            return
+        await message.answer(PHOTO_SAVED.format(sku=sku))
 
     @router.message(F.text)
     async def text_search(

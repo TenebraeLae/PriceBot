@@ -3,12 +3,10 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
-    WebAppInfo,
 )
 
 from pricebot.bot.texts import (
     BTN_ADMIN,
-    BTN_CATALOG,
     BTN_INFO,
     BTN_ORDERS,
     BTN_SEARCH,
@@ -21,19 +19,9 @@ CALLBACK_ADMIN_REPLY = "a:r:"
 CALLBACK_ADMIN_LIST = "a:list"
 
 
-def is_https_webapp_url(url: str) -> bool:
-    return url.startswith("https://")
-
-
-def catalog_button(webapp_url: str) -> KeyboardButton:
-    if is_https_webapp_url(webapp_url):
-        return KeyboardButton(text=BTN_CATALOG, web_app=WebAppInfo(url=webapp_url))
-    return KeyboardButton(text=BTN_CATALOG)
-
-
 def main_keyboard(webapp_url: str, *, admin: bool = False) -> ReplyKeyboardMarkup:
+    del webapp_url
     rows = [
-        [catalog_button(webapp_url)],
         [KeyboardButton(text=BTN_SEARCH), KeyboardButton(text=BTN_ORDERS)],
         [KeyboardButton(text=BTN_INFO), KeyboardButton(text=BTN_SUPPORT)],
     ]
@@ -69,7 +57,7 @@ def admin_home_keyboard() -> InlineKeyboardMarkup:
 
 
 def search_inline_keyboard(page: SearchPage, webapp_url: str) -> InlineKeyboardMarkup | None:
-    buttons: list[list[InlineKeyboardButton]] = []
+    del webapp_url
     nav: list[InlineKeyboardButton] = []
     if page.page > 1:
         nav.append(
@@ -86,12 +74,6 @@ def search_inline_keyboard(page: SearchPage, webapp_url: str) -> InlineKeyboardM
                 callback_data=f"{CALLBACK_PAGE_PREFIX}{page.page + 1}",
             )
         )
-    if nav:
-        buttons.append(nav)
-    if page.items and is_https_webapp_url(webapp_url):
-        buttons.append(
-            [InlineKeyboardButton(text="В Mini App", web_app=WebAppInfo(url=webapp_url))]
-        )
-    if not buttons:
+    if not nav:
         return None
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    return InlineKeyboardMarkup(inline_keyboard=[nav])

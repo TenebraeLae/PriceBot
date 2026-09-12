@@ -4,6 +4,17 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 
+def safe_sku(raw: str | None) -> str | None:
+    text = (raw or "").strip()
+    if not text or len(text) > 64:
+        return None
+    if any(char in text for char in ("/", "\\", "\0")) or ".." in text:
+        return None
+    if text.startswith(".") or text.endswith("."):
+        return None
+    return text
+
+
 def resolve_product_photo(photo_url: str | None) -> str | None:
     if photo_url is None:
         return None

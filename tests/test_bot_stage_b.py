@@ -33,24 +33,20 @@ from pricebot.services.search import LastQueryStore
 from tests.conftest import make_test_settings
 
 
-def test_main_keyboard_has_webapp_and_menu() -> None:
+def test_main_keyboard_menu_without_catalog() -> None:
     markup = main_keyboard("https://example.invalid/app")
     labels = [button.text for row in markup.keyboard for button in row]
-    assert labels == [BTN_CATALOG, BTN_SEARCH, BTN_ORDERS, BTN_INFO, BTN_SUPPORT]
-    assert markup.keyboard[0][0].web_app is not None
-    assert markup.keyboard[0][0].web_app.url == "https://example.invalid/app"
-
-
-def test_main_keyboard_skips_webapp_on_http() -> None:
-    markup = main_keyboard("http://localhost:8080/app/")
-    assert markup.keyboard[0][0].web_app is None
+    assert labels == [BTN_SEARCH, BTN_ORDERS, BTN_INFO, BTN_SUPPORT]
+    assert BTN_CATALOG not in labels
+    assert all(button.web_app is None for row in markup.keyboard for button in row)
 
 
 def test_main_keyboard_admin_includes_admin_button() -> None:
     markup = main_keyboard("https://example.invalid/app", admin=True)
     labels = [button.text for row in markup.keyboard for button in row]
     assert BTN_ADMIN in labels
-    assert markup.keyboard[3][0].text == BTN_ADMIN
+    assert BTN_CATALOG not in labels
+    assert markup.keyboard[2][0].text == BTN_ADMIN
 
 
 def test_ticket_reply_keyboard_callback_data() -> None:
@@ -100,7 +96,9 @@ def test_pagination_inline_and_last_query() -> None:
     markup = search_inline_keyboard(page, "https://example.invalid/app")
     assert markup is not None
     data = [btn.callback_data for row in markup.inline_keyboard for btn in row]
+    texts = [btn.text for row in markup.inline_keyboard for btn in row]
     assert f"{CALLBACK_PAGE_PREFIX}2" in data
+    assert "В Mini App" not in texts
     store = LastQueryStore()
     store.put(7, "бетон")
     assert store.get(7) == "бетон"

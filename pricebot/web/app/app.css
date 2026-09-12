@@ -247,6 +247,16 @@ h1 {
   color: var(--stamp);
 }
 
+.stock {
+  font-size: 0.75rem;
+  color: var(--mute);
+  letter-spacing: 0.04em;
+}
+
+.stock.out {
+  color: var(--stamp);
+}
+
 .step {
   display: flex;
   align-items: center;
