@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from pricebot.config import Settings
 from pricebot.web.deps import get_settings_dep
+from pricebot.web.update_dedup import SEEN_UPDATES
 
 logger = logging.getLogger("pricebot.telegram")
 
@@ -30,17 +31,14 @@ async def telegram_webhook(
         from aiogram.types import Update
 
         update = Update.model_validate(payload, context={"bot": bot})
-        message = payload.get("message") if isinstance(payload, dict) else None
-        has_document = isinstance(message, dict) and message.get("document")
-        if has_document:
-
-            async def _feed() -> None:
-                try:
-                    await dispatcher.feed_update(bot, update)
-                except Exception:
-                    logger.exception("telegram document update failed")
-
-            asyncio.create_task(_feed())
+        if not SEEN_UPDATES.add_new(str(update.update_id)):
             return JSONResponse({"ok": True})
-        await dispatcher.feed_update(bot, update)
+
+        async def _feed() -> None:
+            try:
+                await dispatcher.feed_update(bot, update)
+            except Exception:
+                logger.exception("telegram update failed")
+
+        asyncio.create_task(_feed())
     return JSONResponse({"ok": True})

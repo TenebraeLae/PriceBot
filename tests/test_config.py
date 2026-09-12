@@ -89,6 +89,17 @@ def test_models_have_required_fields() -> None:
     assert SupportTicket.__tablename__ == "support_tickets"
 
 
+def test_recent_id_set_dedups() -> None:
+    from pricebot.web.update_dedup import RecentIdSet
+
+    seen = RecentIdSet(limit=2)
+    assert seen.add_new("1") is True
+    assert seen.add_new("1") is False
+    assert seen.add_new("2") is True
+    assert seen.add_new("3") is True
+    assert seen.add_new("1") is True
+
+
 def test_fastapi_slot_stub() -> None:
     from fastapi.testclient import TestClient
 

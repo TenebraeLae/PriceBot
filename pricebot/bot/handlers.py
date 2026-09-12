@@ -59,6 +59,7 @@ from pricebot.services.admin import attach_product_photo, list_admin_tickets, re
 from pricebot.services.search import LastQueryStore, search_products_db
 from pricebot.services.tickets import create_ticket
 from pricebot.services.users import upsert_user
+from pricebot.web.update_dedup import SEEN_IMPORTS
 
 
 class SupportPendingStore:
@@ -251,6 +252,9 @@ def build_router() -> Router:
         filename = document.file_name or "price.xlsx"
         if not filename.lower().endswith(".xlsx"):
             await message.answer("Пришлите файл .xlsx")
+            return
+        file_key = document.file_unique_id or document.file_id
+        if not SEEN_IMPORTS.add_new(file_key):
             return
         await message.answer(IMPORT_STARTED)
         buffer = BytesIO()
