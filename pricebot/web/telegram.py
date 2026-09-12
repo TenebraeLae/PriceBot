@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -29,5 +30,17 @@ async def telegram_webhook(
         from aiogram.types import Update
 
         update = Update.model_validate(payload, context={"bot": bot})
+        message = payload.get("message") if isinstance(payload, dict) else None
+        has_document = isinstance(message, dict) and message.get("document")
+        if has_document:
+
+            async def _feed() -> None:
+                try:
+                    await dispatcher.feed_update(bot, update)
+                except Exception:
+                    logger.exception("telegram document update failed")
+
+            asyncio.create_task(_feed())
+            return JSONResponse({"ok": True})
         await dispatcher.feed_update(bot, update)
     return JSONResponse({"ok": True})

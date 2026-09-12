@@ -33,6 +33,8 @@ ADMIN_HOME = (
 )
 ADMIN_TICKETS_EMPTY = "Открытых обращений нет."
 ADMIN_REPLY_PROMPT = "Напишите ответ — отправим пользователю в этот чат."
+IMPORT_STARTED = "Файл принят. Загружаю прайс…"
+IMPORT_FAILED = "Не удалось загрузить прайс. Пришлите .xlsx ещё раз."
 NOT_FOUND = "Ничего не найдено."
 INFO_FALLBACK = "Прайс и заказы в Telegram."
 DESC_LIMIT = 200

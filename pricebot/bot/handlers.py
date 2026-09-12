@@ -1,3 +1,4 @@
+import logging
 from io import BytesIO
 from pathlib import Path
 
@@ -29,6 +30,8 @@ from pricebot.bot.texts import (
     CATALOG_NEED_HTTPS,
     FORBIDDEN,
     GREETING,
+    IMPORT_FAILED,
+    IMPORT_STARTED,
     MENU_BUTTONS,
     PROMPT_SEARCH,
     QR_CAPTION,
@@ -249,15 +252,17 @@ def build_router() -> Router:
             return
         document = message.document
         if document is None:
+            await message.answer("Пришлите файл .xlsx")
             return
         filename = document.file_name or "price.xlsx"
         if not filename.lower().endswith(".xlsx"):
             await message.answer("Пришлите файл .xlsx")
             return
+        await message.answer(IMPORT_STARTED)
         buffer = BytesIO()
-        await bot.download(document, destination=buffer)
-        async with session_factory() as session:
-            try:
+        try:
+            await bot.download(document, destination=buffer)
+            async with session_factory() as session:
                 report = await apply_price_import(
                     session,
                     content=buffer.getvalue(),
@@ -269,9 +274,13 @@ def build_router() -> Router:
                     timezone_name=settings.timezone,
                     redis_url=settings.redis_url,
                 )
-            except DomainError as exc:
-                await message.answer(exc.message)
-                return
+        except DomainError as exc:
+            await message.answer(exc.message)
+            return
+        except Exception:
+            logging.getLogger(__name__).exception("xlsx import failed")
+            await message.answer(IMPORT_FAILED)
+            return
         await message.answer(format_import_report(report))
 
     @router.message(F.text)
