@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from pathlib import Path
 
 from aiogram import Dispatcher
@@ -56,6 +57,10 @@ async def run_bot(settings: Settings) -> None:
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
     settings = get_settings()
     asyncio.run(run_bot(settings))
 

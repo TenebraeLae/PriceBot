@@ -33,6 +33,11 @@ def test_main_keyboard_has_webapp_and_menu() -> None:
     assert markup.keyboard[0][0].web_app.url == "https://example.invalid/app"
 
 
+def test_main_keyboard_skips_webapp_on_http() -> None:
+    markup = main_keyboard("http://localhost:8080/app/")
+    assert markup.keyboard[0][0].web_app is None
+
+
 def test_info_orders_support_and_greeting_texts() -> None:
     info = load_info_text()
     assert "Прайс" in info

@@ -8,14 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from pricebot.bot.keyboards import (
     CALLBACK_PAGE_PREFIX,
+    is_https_webapp_url,
     main_keyboard,
     search_inline_keyboard,
 )
 from pricebot.bot.texts import (
+    BTN_CATALOG,
     BTN_INFO,
     BTN_ORDERS,
     BTN_SEARCH,
     BTN_SUPPORT,
+    CATALOG_NEED_HTTPS,
     FORBIDDEN,
     GREETING,
     MENU_BUTTONS,
@@ -76,6 +79,12 @@ def build_router() -> Router:
                 await upsert_user(session, user.id, user.username)
                 await session.commit()
         await message.answer(GREETING, reply_markup=main_keyboard(settings.webapp_url))
+
+    @router.message(F.text == BTN_CATALOG)
+    async def menu_catalog(message: Message, settings: Settings) -> None:
+        if is_https_webapp_url(settings.webapp_url):
+            return
+        await message.answer(CATALOG_NEED_HTTPS)
 
     @router.message(F.text == BTN_SEARCH)
     async def menu_search(message: Message) -> None:
