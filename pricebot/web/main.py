@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from sqlalchemy.exc import SQLAlchemyError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
@@ -98,6 +98,10 @@ app.include_router(telegram_router)
 
 
 @app.get("/")
+async def root() -> RedirectResponse:
+    return RedirectResponse(url="/app/", status_code=302)
+
+
 @app.get("/health")
 async def health() -> dict[str, bool]:
     return {"ok": True}

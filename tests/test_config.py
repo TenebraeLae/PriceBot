@@ -99,4 +99,6 @@ def test_fastapi_slot_stub() -> None:
     assert payload["ready"] is True
     assert client.get("/api/slot").json() == payload
     assert client.get("/health").json() == {"ok": True}
-    assert client.get("/").json() == {"ok": True}
+    home = client.get("/", follow_redirects=False)
+    assert home.status_code == 302
+    assert home.headers["location"] == "/app/"
